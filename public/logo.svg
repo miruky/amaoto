@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="logo-title">
+  <title id="logo-title">amaoto - 雨音のロゴ</title>
+  <style>
+    .bg { fill: #f3f1ec; }
+    .wave { stroke: #3f9d86; }
+    .drop { fill: #3f9d86; }
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #121311; }
+      .wave { stroke: #74c9b4; }
+      .drop { fill: #74c9b4; }
+    }
+  </style>
+  <rect class="bg" width="128" height="128" rx="28" />
+  <g class="drop">
+    <circle cx="40" cy="34" r="4" opacity="0.55" />
+    <circle cx="64" cy="28" r="4.5" />
+    <circle cx="88" cy="34" r="4" opacity="0.55" />
+  </g>
+  <g class="wave" fill="none" stroke-width="7" stroke-linecap="round">
+    <path d="M22 60c8 0 8-12 16-12s8 12 16 12 8-12 16-12 8 12 16 12 8-12 16-12" opacity="0.95" />
+    <path d="M22 82c8 0 8-12 16-12s8 12 16 12 8-12 16-12 8 12 16 12 8-12 16-12" opacity="0.6" />
+    <path d="M22 104c8 0 8-12 16-12s8 12 16 12 8-12 16-12 8 12 16 12 8-12 16-12" opacity="0.32" />
+  </g>
+</svg>
