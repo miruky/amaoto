@@ -1,6 +1,7 @@
 import './style.css';
 import { Mixer } from './lib/engine';
 import {
+  activeCount,
   defaultMix,
   type Mix,
   SCENES,
@@ -12,6 +13,16 @@ import {
 import { getSound, SOUNDS } from './lib/sounds';
 import { decodeMix, encodeMix } from './lib/share';
 import { loadString, saveString } from './lib/storage';
+import {
+  applyTheme,
+  loadTheme,
+  nextTheme,
+  resolveTheme,
+  saveTheme,
+  type Theme,
+  THEME_LABEL,
+} from './lib/theme';
+import { createWaveform } from './lib/visualizer';
 import { icon, type IconName } from './icons';
 
 type Attrs = Record<string, string | number | boolean | null | undefined>;
@@ -46,10 +57,27 @@ function h<K extends keyof HTMLElementTagNameMap>(
 
 const SLEEP_OPTIONS = [0, 15, 30, 45, 60];
 
+// 一覧での英字の添え名。明朝の和名に小さく添えて階層を作る。
+const ROMAJI: Readonly<Record<string, string>> = {
+  rain: 'Rain',
+  waves: 'Waves',
+  wind: 'Wind',
+  fire: 'Fire',
+  stream: 'Stream',
+  white: 'White noise',
+  pink: 'Pink noise',
+  brown: 'Brown noise',
+};
+
+function prefersReducedMotion(): boolean {
+  return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
 export function mountApp(root: HTMLElement): void {
   const mixer = new Mixer();
   const state = { mix: initialMix() };
   let started = false;
+  let theme: Theme = loadTheme();
 
   const cards = new Map<string, HTMLElement>();
   const volumeInputs = new Map<string, HTMLInputElement>();
@@ -57,6 +85,8 @@ export function mountApp(root: HTMLElement): void {
     class: 'master-range',
     attrs: { type: 'range', min: 0, max: 100, step: 1, 'aria-label': 'マスター音量' },
   }) as HTMLInputElement;
+  const masterValue = h('output', { class: 'master-value', attrs: { 'aria-hidden': 'true' } });
+  const activeLabel = h('span', { class: 'mixer-count', attrs: { role: 'status', 'aria-live': 'polite' } });
   const sleepStatus = h('span', { class: 'sleep-status', attrs: { role: 'status', 'aria-live': 'polite' } });
   const shareStatus = h('span', { class: 'share-status', attrs: { role: 'status', 'aria-live': 'polite' } });
 
@@ -72,11 +102,13 @@ export function mountApp(root: HTMLElement): void {
     started = true;
     void mixer.resume();
     mixer.applyMix(state.mix);
+    refreshWave();
   }
 
   function setMix(next: Mix): void {
     state.mix = next;
     persist();
+    syncMeta();
   }
 
   function toggleSound(id: string): void {
@@ -86,6 +118,7 @@ export function mountApp(root: HTMLElement): void {
     const layer = next.layers[id]!;
     mixer.setLayer(id, layer.on, layer.volume);
     syncCard(id);
+    refreshWave();
   }
 
   function changeVolume(id: string, value: number): void {
@@ -94,12 +127,14 @@ export function mountApp(root: HTMLElement): void {
     setMix(next);
     mixer.setLayer(id, true, value / 100);
     syncCard(id);
+    refreshWave();
   }
 
   function changeMaster(value: number): void {
     ensureStarted();
     setMix(setMaster(state.mix, value / 100));
     mixer.setMaster(value / 100);
+    masterValue.textContent = String(Math.round(value));
   }
 
   function applyMixAll(next: Mix): void {
@@ -108,9 +143,31 @@ export function mountApp(root: HTMLElement): void {
     mixer.applyMix(next);
     renderSounds();
     masterInput.value = String(Math.round(next.master * 100));
+    masterValue.textContent = String(Math.round(next.master * 100));
+    refreshWave();
+  }
+
+  // ---- 波形の可視化 ----
+
+  const waveLine = svgPath('wave-line');
+  const waveEcho = svgPath('wave-echo');
+  const waveform = createWaveform({
+    paths: [waveLine, waveEcho],
+    read: () => mixer.readWaveform(),
+    active: () => started && !prefersReducedMotion() && activeCount(state.mix) > 0,
+  });
+
+  function refreshWave(): void {
+    if (started && !prefersReducedMotion() && activeCount(state.mix) > 0) waveform.start();
+    else waveform.stop();
   }
 
   // ---- 描画 ----
+
+  function syncMeta(): void {
+    const n = activeCount(state.mix);
+    activeLabel.textContent = n === 0 ? '音は止まっています' : `${n} 種類が重なっています`;
+  }
 
   function syncCard(id: string): void {
     const card = cards.get(id);
@@ -130,7 +187,7 @@ export function mountApp(root: HTMLElement): void {
     const viz = h(
       'span',
       { class: 'viz', attrs: { 'aria-hidden': 'true' } },
-      Array.from({ length: 5 }, (_, i) => h('span', { class: `bar bar-${i}` })),
+      Array.from({ length: 4 }, (_, i) => h('span', { class: `bar bar-${i}` })),
     );
     const toggle = h(
       'button',
@@ -139,39 +196,140 @@ export function mountApp(root: HTMLElement): void {
         attrs: { type: 'button', 'aria-pressed': layer.on, 'aria-label': `${def.name}を鳴らす` },
         on: { click: () => toggleSound(id) },
       },
-      [h('span', { class: 'sound-icon', html: icon(def.icon as IconName, 26) }), h('span', { class: 'sound-name', text: def.name }), viz],
+      [
+        h('span', { class: 'sound-icon', html: icon(def.icon as IconName, 22) }),
+        h('span', { class: 'sound-label' }, [
+          h('span', { class: 'sound-name', text: def.name }),
+          h('span', { class: 'sound-en', text: ROMAJI[id] ?? '' }),
+        ]),
+        viz,
+      ],
     );
 
     const volume = h('input', {
       class: 'sound-range',
-      attrs: { type: 'range', min: 0, max: 100, step: 1, value: Math.round(layer.volume * 100), 'aria-label': `${def.name}の音量` },
+      attrs: {
+        type: 'range',
+        min: 0,
+        max: 100,
+        step: 1,
+        value: Math.round(layer.volume * 100),
+        'aria-label': `${def.name}の音量`,
+      },
       on: { input: (e) => changeVolume(id, Number((e.target as HTMLInputElement).value)) },
     }) as HTMLInputElement;
     volumeInputs.set(id, volume);
 
-    const card = h('div', { class: 'sound' + (layer.on ? ' is-on' : ''), attrs: { 'data-id': id } }, [
+    const card = h('li', { class: 'sound' + (layer.on ? ' is-on' : ''), attrs: { 'data-id': id } }, [
       toggle,
-      volume,
+      h('span', { class: 'sound-control' }, [volume]),
     ]);
     cards.set(id, card);
     return card;
   }
 
-  const soundGrid = h('div', { class: 'sound-grid' });
+  const soundList = h('ul', { class: 'sound-list', attrs: { 'aria-label': '環境音' } });
 
   function renderSounds(): void {
     cards.clear();
     volumeInputs.clear();
-    soundGrid.replaceChildren(...SOUNDS.map((s) => buildCard(s.id)));
+    soundList.replaceChildren(...SOUNDS.map((s) => buildCard(s.id)));
+    syncMeta();
   }
 
-  function buildControls(): HTMLElement {
-    masterInput.value = String(Math.round(state.mix.master * 100));
-    masterInput.addEventListener('input', () => changeMaster(Number(masterInput.value)));
+  // ---- ヘッダ・テーマ ----
 
+  const themeBtn = h('button', {
+    class: 'theme-toggle',
+    attrs: { type: 'button' },
+    on: { click: cycleTheme },
+  });
+
+  function syncTheme(): void {
+    applyTheme(theme);
+    const resolved = resolveTheme(theme);
+    const ic: IconName = theme === 'auto' ? 'auto' : theme === 'light' ? 'sun' : 'moon';
+    themeBtn.innerHTML = `${icon(ic, 18)}<span class="theme-name">${THEME_LABEL[theme]}</span>`;
+    themeBtn.setAttribute(
+      'aria-label',
+      `テーマ: ${THEME_LABEL[theme]}(現在は${resolved === 'dark' ? '夜' : '昼'})。押すと切り替え`,
+    );
+    refreshWave();
+  }
+
+  function cycleTheme(): void {
+    theme = nextTheme(theme);
+    saveTheme(theme);
+    syncTheme();
+  }
+
+  const header = h('header', { class: 'topbar' }, [
+    h('a', { class: 'brand', attrs: { href: '#top', 'aria-label': 'amaoto トップ' } }, [
+      h('span', { class: 'brand-mark', html: brandMark() }),
+      h('span', { class: 'brand-name', text: 'amaoto' }),
+    ]),
+    themeBtn,
+  ]);
+
+  // ---- 構成 ----
+
+  const waveSvg = (): SVGSVGElement => {
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('class', 'wave');
+    svg.setAttribute('viewBox', '0 0 1200 200');
+    svg.setAttribute('preserveAspectRatio', 'none');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.append(waveEcho, waveLine);
+    return svg;
+  };
+
+  const heroBanner = (): HTMLElement => {
+    const fig = h('figure', { class: 'hero-banner', attrs: { 'aria-hidden': 'true' } });
+    const img = h('img', {
+      class: 'hero-img',
+      attrs: {
+        src: 'https://picsum.photos/seed/amaoto-ame/1600/900?grayscale',
+        width: 1600,
+        height: 900,
+        loading: 'lazy',
+        decoding: 'async',
+        alt: '',
+      },
+    });
+    fig.append(img, h('span', { class: 'hero-tint' }), waveSvg());
+    return fig;
+  };
+
+  const hero = h('section', { class: 'hero reveal', attrs: { id: 'top' } }, [
+    h('div', { class: 'hero-head' }, [
+      h('span', { class: 'kicker', text: '環境音ミキサー' }),
+      h('h1', { class: 'hero-title', html: '雨音<em>amaoto</em>' }),
+      h('p', {
+        class: 'lead',
+        text: '雨、波、風、焚き火。鳴らしたい音を選んで重ね、いまの作業や休息にちょうどいい場をつくる。音声ファイルは持たず、すべてその場で合成するので、待ち時間も通信もない。',
+      }),
+      h('p', { class: 'lead-sub', text: 'カードで音を足し、スライダーで濃さを決める。リンクにすれば同じ音をそのまま渡せる。' }),
+    ]),
+    heroBanner(),
+  ]);
+
+  const mixerSection = h('section', { class: 'mixer reveal' }, [
+    h('div', { class: 'section-head' }, [
+      h('div', {}, [
+        h('span', { class: 'kicker', text: '音を重ねる' }),
+        h('h2', { class: 'section-title', text: '音の重なり' }),
+      ]),
+      activeLabel,
+    ]),
+    soundList,
+    h('p', { class: 'mixer-hint', text: '数字キー(1〜8)でも音を出し入れできる。' }),
+  ]);
+
+  const sceneRow = (): HTMLElement => {
     const scenes = h(
       'div',
-      { class: 'scenes', attrs: { role: 'group', 'aria-label': 'シーン' } },
+      { class: 'chips', attrs: { role: 'group', 'aria-label': 'シーン' } },
       SCENES.map((scene) =>
         h('button', {
           class: 'chip',
@@ -181,15 +339,39 @@ export function mountApp(root: HTMLElement): void {
         }),
       ),
     );
-
     const randomBtn = h('button', {
       class: 'ghost',
       attrs: { type: 'button' },
       html: `${icon('shuffle')}<span>ランダム</span>`,
-      on: {
-        click: () => applyMixAll(SCENES[Math.floor(Math.random() * SCENES.length)]!.mix),
-      },
+      on: { click: () => applyMixAll(SCENES[Math.floor(Math.random() * SCENES.length)]!.mix) },
     });
+    return h('div', { class: 'scene-row' }, [scenes, randomBtn]);
+  };
+
+  const scenesSection = h('section', { class: 'scenes reveal' }, [
+    h('div', { class: 'section-head' }, [
+      h('div', {}, [
+        h('span', { class: 'kicker', text: '下ごしらえ' }),
+        h('h2', { class: 'section-title', text: 'シーン' }),
+      ]),
+    ]),
+    h('p', { class: 'section-note', text: '名前を選ぶと、その場にふさわしい配合をひとそろい呼び出す。' }),
+    sceneRow(),
+  ]);
+
+  const buildConsole = (): HTMLElement => {
+    masterInput.value = String(Math.round(state.mix.master * 100));
+    masterValue.textContent = String(Math.round(state.mix.master * 100));
+    masterInput.addEventListener('input', () => changeMaster(Number(masterInput.value)));
+
+    const master = h('div', { class: 'master' }, [
+      h('div', { class: 'master-top' }, [
+        h('span', { class: 'field-label', text: 'マスター音量' }),
+        masterValue,
+      ]),
+      masterInput,
+    ]);
+
     const silenceBtn = h('button', {
       class: 'ghost',
       attrs: { type: 'button' },
@@ -209,6 +391,7 @@ export function mountApp(root: HTMLElement): void {
           sleepSelect.value = '0';
           sleepStatus.textContent = '停止しました';
           renderSounds();
+          refreshWave();
         });
         sleepStatus.textContent = `約${minutes}分後に停止`;
       } else {
@@ -224,18 +407,20 @@ export function mountApp(root: HTMLElement): void {
       on: { click: copyLink },
     });
 
-    return h('section', { class: 'controls panel' }, [
-      h('div', { class: 'control-row' }, [
-        labeled('マスター音量', masterInput),
-        silenceBtn,
-      ]),
-      h('div', { class: 'control-block' }, [h('h2', { text: 'シーン' }), h('div', { class: 'scene-row' }, [scenes, randomBtn])]),
-      h('div', { class: 'control-row wrap' }, [
-        labeled('スリープ', sleepSelect),
-        sleepStatus,
-        h('div', { class: 'share' }, [shareBtn, shareStatus]),
+    return h('div', { class: 'console-grid' }, [
+      master,
+      h('div', { class: 'console-utils' }, [
+        util('スリープ', sleepSelect, sleepStatus),
+        util('共有', h('div', { class: 'util-row' }, [shareBtn, shareStatus])),
+        util('リセット', silenceBtn),
       ]),
     ]);
+  };
+
+  function util(label: string, control: Node, status?: Node): HTMLDivElement {
+    const children: (Node | string)[] = [h('span', { class: 'field-label', text: label }), control];
+    if (status) children.push(status);
+    return h('div', { class: 'util' }, children);
   }
 
   async function copyLink(): Promise<void> {
@@ -251,37 +436,39 @@ export function mountApp(root: HTMLElement): void {
     }, 2600);
   }
 
-  function labeled(label: string, control: Node): HTMLDivElement {
-    return h('div', { class: 'labeled' }, [h('span', { class: 'labeled-text', text: label }), control]);
-  }
-
-  // ---- 組み立て ----
-
-  const header = h('header', { class: 'site-header' }, [
-    h('div', { class: 'brand' }, [
-      h('span', { class: 'brand-mark', html: brandMark() }),
+  const consoleSection = h('section', { class: 'console reveal' }, [
+    h('div', { class: 'section-head' }, [
       h('div', {}, [
-        h('span', { class: 'brand-name', text: 'amaoto' }),
-        h('span', { class: 'brand-tag', text: '作業のための環境音ミキサー' }),
+        h('span', { class: 'kicker', text: '全体' }),
+        h('h2', { class: 'section-title', text: 'コンソール' }),
       ]),
     ]),
+    buildConsole(),
+  ]);
+
+  const footer = h('footer', { class: 'site-footer' }, [
+    h('p', {
+      class: 'footer-note',
+      text: '音はブラウザ内で合成され、外部に送信されない。ミックスはこの端末に保存され、リンクにも畳み込まれる。',
+    }),
   ]);
 
   root.replaceChildren(
     header,
-    h('main', { class: 'layout' }, [
-      h('section', { class: 'panel panel-sounds' }, [
-        h('div', { class: 'panel-head' }, [
-          h('h2', { text: '音を重ねる' }),
-          h('p', { class: 'hint', text: 'カードで鳴らし、スライダーで音量を決める。複数を重ねて好みの場を作る。' }),
-        ]),
-        soundGrid,
-      ]),
-      buildControls(),
-    ]),
+    h('main', { class: 'layout' }, [hero, mixerSection, scenesSection, consoleSection, footer]),
   );
 
   renderSounds();
+  syncTheme();
+  refreshWave();
+  observeReveals(root);
+
+  const reducedMQ = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
+  reducedMQ?.addEventListener?.('change', refreshWave);
+  const colorMQ = typeof matchMedia === 'function' ? matchMedia('(prefers-color-scheme: dark)') : null;
+  colorMQ?.addEventListener?.('change', () => {
+    if (theme === 'auto') syncTheme();
+  });
 
   window.addEventListener('keydown', (event) => {
     const target = event.target as HTMLElement | null;
@@ -300,6 +487,38 @@ export function mountApp(root: HTMLElement): void {
   });
 }
 
+function svgPath(cls: string): SVGPathElement {
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('class', cls);
+  path.setAttribute('fill', 'none');
+  return path;
+}
+
+// セクションを少し下からそっと立ち上げる。IntersectionObserverが無い環境や
+// reduced-motion では即座に表示して、出現演出だけを省く。
+function observeReveals(root: HTMLElement): void {
+  const reveals = [...root.querySelectorAll<HTMLElement>('.reveal')];
+  // 演出する場合だけ「最初は隠す」状態をCSSへ許可する。JSやIntersectionObserverが
+  // 無い・reduced-motion のときは何も隠さず、全要素を素のまま見せる。
+  if (typeof IntersectionObserver !== 'function' || prefersReducedMotion()) {
+    reveals.forEach((el) => el.classList.add('is-in'));
+    return;
+  }
+  document.documentElement.classList.add('anim-ready');
+  const io = new IntersectionObserver(
+    (entries, obs) => {
+      for (const e of entries) {
+        if (e.isIntersecting) {
+          e.target.classList.add('is-in');
+          obs.unobserve(e.target);
+        }
+      }
+    },
+    { threshold: 0.12, rootMargin: '0px 0px -8% 0px' },
+  );
+  reveals.forEach((el) => io.observe(el));
+}
+
 function initialMix(): Mix {
   const fromHash = decodeMix(location.hash);
   if (fromHash) return fromHash;
@@ -313,7 +532,7 @@ function initialMix(): Mix {
 
 function brandMark(): string {
   return (
-    `<svg viewBox="0 0 32 32" width="28" height="28" fill="none" aria-hidden="true">` +
+    `<svg viewBox="0 0 32 32" width="26" height="26" fill="none" aria-hidden="true">` +
     `<path d="M3 16c2.5 0 2.5-5 5-5s2.5 5 5 5 2.5-5 5-5 2.5 5 5 5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />` +
     `<path d="M3 23c2.5 0 2.5-4 5-4s2.5 4 5 4 2.5-4 5-4 2.5 4 5 4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" opacity="0.5" />` +
     `<path d="M13 4l2 3M19 3l1.5 4M24 6l1 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.7" />` +
