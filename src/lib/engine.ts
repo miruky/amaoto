@@ -30,6 +30,8 @@ interface LayerNodes {
 export class Mixer {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
+  private analyser: AnalyserNode | null = null;
+  private wave: Uint8Array<ArrayBuffer> | null = null;
   private buffers = new Map<NoiseColor, AudioBuffer>();
   private layers = new Map<string, LayerNodes>();
   private masterValue = 0.8;
@@ -112,6 +114,16 @@ export class Mixer {
 
   private suspend(): void {
     if (this.ctx && this.ctx.state === 'running') void this.ctx.suspend();
+  }
+
+  /**
+   * マスター直後の波形(時間領域、0..255で128が無音)を読む。可視化に渡す。
+   * Analyserが無い/未起動なら null。長さはアナライザのfftSizeに従う。
+   */
+  readWaveform(): Uint8Array | null {
+    if (!this.analyser || !this.wave) return null;
+    this.analyser.getByteTimeDomainData(this.wave);
+    return this.wave;
   }
 
   private ensureLayer(def: SoundDef): LayerNodes {
@@ -221,7 +233,17 @@ export class Mixer {
       compressor.connect(this.ctx.destination);
       this.master = this.ctx.createGain();
       this.master.gain.value = this.masterValue;
-      this.master.connect(compressor);
+      // マスター直後に素通しのアナライザを挟み、波形を可視化に渡す。
+      // 古い実装やテスト環境では createAnalyser を持たないこともあるので素通しで分岐する。
+      if (typeof this.ctx.createAnalyser === 'function') {
+        this.analyser = this.ctx.createAnalyser();
+        this.analyser.fftSize = 1024;
+        this.analyser.smoothingTimeConstant = 0.85;
+        this.wave = new Uint8Array(new ArrayBuffer(this.analyser.fftSize));
+        this.master.connect(this.analyser).connect(compressor);
+      } else {
+        this.master.connect(compressor);
+      }
     }
     return this.ctx;
   }
