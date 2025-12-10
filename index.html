@@ -5,16 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="雨・波・風・焚き火などの環境音をブラウザ内で合成して重ね、作業や休息のための音の場を作るミキサー。"
+      content="雨・波・風・焚き火などの環境音をブラウザ内で合成して重ね、作業や休息のための音の場をつくるミキサー。音声ファイルを持たず、その場で生成する。"
     />
-    <meta name="theme-color" content="#f3f1ec" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#121311" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f4f1ea" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#101310" media="(prefers-color-scheme: dark)" />
     <link rel="icon" href="/logo.svg" type="image/svg+xml" />
-    <title>amaoto — 作業のための環境音ミキサー</title>
+    <title>amaoto — 環境音を重ねる</title>
+    <!-- 描画前にテーマを確定させ、初回ロードの色のちらつき(FOUC)を防ぐ -->
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem('amaoto:theme');
+          if (saved === 'light' || saved === 'dark') {
+            document.documentElement.setAttribute('data-theme', saved);
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="app"></div>
-    <noscript>amaoto は音を合成するためにJavaScriptを使います。有効にしてください。</noscript>
+    <noscript>amaoto は音をその場で合成するために JavaScript を使います。有効にしてください。</noscript>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
