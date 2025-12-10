@@ -1,22 +1,24 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 340" role="img" aria-labelledby="arch-title">
-  <title id="arch-title">amaotoの構成。純粋ロジックが色付きノイズと音源の定義・ミックス状態を持ち、画面(app)がそれを操作する。画面のミックスはengineでWeb Audioの音になり、URLハッシュとlocalStorageへ保存・復元される。</title>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 360" role="img" aria-labelledby="arch-title">
+  <title id="arch-title">amaotoの構成。純粋ロジックが色付きノイズ・音源定義・ミックス状態・共有・テーマを持ち、画面(app)がそれを操作する。画面のミックスはengineでWeb Audioの音になり、マスター直後のアナライザの波形をvisualizerが描く。状態はURLハッシュとlocalStorageへ保存・復元される。</title>
   <style>
-    .box { fill: #ffffff; stroke: #e5e1d7; stroke-width: 1.5; }
-    .mod { fill: #faf8f3; stroke: #d5d0c3; stroke-width: 1.5; }
-    .name { fill: #1c1e1b; font: 600 15px system-ui, sans-serif; }
-    .label { fill: #6a6f69; font: 12.5px system-ui, sans-serif; }
-    .sig { stroke: #3f9d86; stroke-width: 2; fill: none; marker-end: url(#a); }
-    .ctl { stroke: #989b92; stroke-width: 1.6; fill: none; stroke-dasharray: 5 4; marker-end: url(#b); }
+    .box { fill: #faf8f2; stroke: #d3ccba; stroke-width: 1.5; }
+    .mod { fill: #f1ede2; stroke: #d3ccba; stroke-width: 1.5; }
+    .name { fill: #23261f; font: 600 15px system-ui, sans-serif; }
+    .label { fill: #5f6258; font: 12.5px system-ui, sans-serif; }
+    .sig { stroke: #2c7666; stroke-width: 2; fill: none; marker-end: url(#a); }
+    .ctl { stroke: #82847a; stroke-width: 1.6; fill: none; stroke-dasharray: 5 4; marker-end: url(#b); }
     .bi { marker-start: url(#a); }
-    #a path { fill: #3f9d86; }
-    #b path { fill: #989b92; }
+    #a path { fill: #2c7666; }
+    #b path { fill: #82847a; }
     @media (prefers-color-scheme: dark) {
-      .box { fill: #202220; stroke: #2c2e2a; }
-      .mod { fill: #1b1c19; stroke: #3a3d37; }
-      .name { fill: #e9e9e2; }
-      .label { fill: #979b91; }
-      .sig { stroke: #74c9b4; }
-      #a path { fill: #74c9b4; }
+      .box { fill: #181c17; stroke: #353c31; }
+      .mod { fill: #12150f; stroke: #353c31; }
+      .name { fill: #e8e7db; }
+      .label { fill: #a0a395; }
+      .sig { stroke: #74c8af; }
+      .ctl { stroke: #7c8072; }
+      #a path { fill: #74c8af; }
+      #b path { fill: #7c8072; }
     }
   </style>
   <defs>
@@ -28,39 +30,45 @@
     </marker>
   </defs>
 
-  <rect class="mod" x="40" y="74" width="210" height="196" rx="14" />
-  <text class="name" x="145" y="102" text-anchor="middle">純粋ロジック</text>
-  <text class="label" x="145" y="136" text-anchor="middle">noise(色付き雑音)</text>
-  <text class="label" x="145" y="164" text-anchor="middle">sounds(音源定義)</text>
-  <text class="label" x="145" y="192" text-anchor="middle">mix(状態)</text>
-  <text class="label" x="145" y="220" text-anchor="middle">share</text>
+  <rect class="mod" x="40" y="64" width="210" height="226" rx="14" />
+  <text class="name" x="145" y="92" text-anchor="middle">純粋ロジック</text>
+  <text class="label" x="145" y="124" text-anchor="middle">noise(色付き雑音)</text>
+  <text class="label" x="145" y="150" text-anchor="middle">sounds(音源定義)</text>
+  <text class="label" x="145" y="176" text-anchor="middle">mix(状態)</text>
+  <text class="label" x="145" y="202" text-anchor="middle">share(URL畳み込み)</text>
+  <text class="label" x="145" y="228" text-anchor="middle">theme(明暗の解決)</text>
 
-  <rect class="box" x="330" y="112" width="190" height="104" rx="14" />
-  <text class="name" x="425" y="148" text-anchor="middle">app.ts(画面)</text>
-  <text class="label" x="425" y="172" text-anchor="middle">カード ・ シーン</text>
-  <text class="label" x="425" y="192" text-anchor="middle">スリープタイマー</text>
+  <rect class="box" x="330" y="104" width="190" height="116" rx="14" />
+  <text class="name" x="425" y="138" text-anchor="middle">app.ts(画面)</text>
+  <text class="label" x="425" y="164" text-anchor="middle">一覧 ・ シーン</text>
+  <text class="label" x="425" y="184" text-anchor="middle">コンソール ・ 波形</text>
+  <text class="label" x="425" y="204" text-anchor="middle">スリープタイマー</text>
 
-  <rect class="box" x="600" y="112" width="170" height="104" rx="14" />
-  <text class="name" x="685" y="148" text-anchor="middle">engine.ts</text>
-  <text class="label" x="685" y="172" text-anchor="middle">Web Audio</text>
-  <text class="label" x="685" y="192" text-anchor="middle">ループ+フィルタ+LFO</text>
+  <rect class="box" x="600" y="104" width="170" height="116" rx="14" />
+  <text class="name" x="685" y="138" text-anchor="middle">engine.ts</text>
+  <text class="label" x="685" y="164" text-anchor="middle">Web Audio</text>
+  <text class="label" x="685" y="184" text-anchor="middle">ループ+フィルタ+LFO</text>
+  <text class="label" x="685" y="204" text-anchor="middle">アナライザ</text>
 
-  <rect class="box" x="838" y="134" width="84" height="60" rx="14" />
-  <text class="name" x="880" y="169" text-anchor="middle">出力</text>
+  <rect class="box" x="838" y="130" width="84" height="60" rx="14" />
+  <text class="name" x="880" y="165" text-anchor="middle">出力</text>
 
-  <rect class="mod" x="330" y="252" width="190" height="62" rx="14" />
-  <text class="name" x="425" y="280" text-anchor="middle">永続化</text>
-  <text class="label" x="425" y="300" text-anchor="middle">URLハッシュ / localStorage</text>
+  <rect class="mod" x="330" y="256" width="190" height="62" rx="14" />
+  <text class="name" x="425" y="284" text-anchor="middle">永続化</text>
+  <text class="label" x="425" y="304" text-anchor="middle">URLハッシュ / localStorage</text>
 
-  <path class="sig" d="M250 164 H322" />
-  <text class="label" x="286" y="152" text-anchor="middle">定義</text>
-  <path class="sig" d="M520 164 H592" />
-  <text class="label" x="556" y="152" text-anchor="middle">ミックス</text>
-  <path class="sig" d="M770 164 H830" />
+  <path class="sig" d="M250 158 H322" />
+  <text class="label" x="286" y="146" text-anchor="middle">定義</text>
+  <path class="sig" d="M520 150 H592" />
+  <text class="label" x="556" y="138" text-anchor="middle">ミックス</text>
+  <path class="sig" d="M770 158 H830" />
 
-  <path class="ctl" d="M250 108 C 372 54, 542 54, 660 110" />
-  <text class="label" x="455" y="50" text-anchor="middle">ノイズ・パラメータ</text>
+  <path class="ctl" d="M600 200 C 560 236, 470 236, 522 210" />
+  <text class="label" x="560" y="250" text-anchor="middle">波形</text>
 
-  <path class="sig bi" d="M425 216 V248" />
-  <text class="label" x="500" y="238" text-anchor="middle">共有・復元</text>
+  <path class="ctl" d="M250 98 C 372 48, 542 48, 660 102" />
+  <text class="label" x="455" y="44" text-anchor="middle">ノイズ・パラメータ</text>
+
+  <path class="sig bi" d="M425 220 V252" />
+  <text class="label" x="500" y="242" text-anchor="middle">共有・復元</text>
 </svg>
