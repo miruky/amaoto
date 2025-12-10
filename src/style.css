@@ -184,6 +184,17 @@ a {
   font-family: var(--font-mincho);
   font-size: 1.18rem;
   letter-spacing: 0.06em;
+  background-image: linear-gradient(var(--accent), var(--accent));
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  background-size: 0% 1px;
+  padding-bottom: 2px;
+  transition: background-size 0.32s var(--ease);
+}
+
+.brand:hover .brand-name,
+.brand:focus-visible .brand-name {
+  background-size: 100% 1px;
 }
 
 .theme-toggle {
@@ -440,6 +451,7 @@ section {
 
 .sound.is-on .sound-icon {
   color: var(--accent);
+  transform: scale(1.08);
 }
 
 .sound-label {
@@ -813,6 +825,43 @@ section {
 }
 .hero.is-in .hero-banner {
   transition-delay: 0.18s;
+}
+
+/* 一覧の行は、セクションが見えたとき(とシーン適用での再描画時)に下から順に立ち上がる。
+   不透明度はセクションの reveal が持つので、ここでは移動だけを段差で見せる。 */
+.mixer.is-in .sound {
+  animation: rowin 0.5s var(--ease) both;
+}
+
+.mixer.is-in .sound:nth-child(2) {
+  animation-delay: 0.05s;
+}
+.mixer.is-in .sound:nth-child(3) {
+  animation-delay: 0.1s;
+}
+.mixer.is-in .sound:nth-child(4) {
+  animation-delay: 0.15s;
+}
+.mixer.is-in .sound:nth-child(5) {
+  animation-delay: 0.2s;
+}
+.mixer.is-in .sound:nth-child(6) {
+  animation-delay: 0.25s;
+}
+.mixer.is-in .sound:nth-child(7) {
+  animation-delay: 0.3s;
+}
+.mixer.is-in .sound:nth-child(8) {
+  animation-delay: 0.35s;
+}
+
+@keyframes rowin {
+  from {
+    transform: translateY(10px);
+  }
+  to {
+    transform: none;
+  }
 }
 
 @keyframes bounce {
