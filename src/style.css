@@ -127,12 +127,30 @@ a {
 }
 
 .kicker {
-  display: block;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.24em;
   color: var(--accent);
   text-transform: uppercase;
+}
+
+.kicker-no {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.1em;
+  color: var(--faint);
+}
+
+.kicker-no::after {
+  content: '';
+  display: inline-block;
+  width: 18px;
+  height: 1px;
+  margin-left: 10px;
+  vertical-align: middle;
+  background: var(--line-strong);
 }
 
 /* ---- ヘッダ ---- */
@@ -272,6 +290,42 @@ section {
   margin-top: 16px;
   color: var(--muted);
   font-size: 0.92rem;
+}
+
+.hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(18px, 3vw, 30px);
+  margin: 30px 0 0;
+}
+
+.hero-meta > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-right: clamp(18px, 3vw, 30px);
+  border-right: 1px solid var(--line);
+}
+
+.hero-meta > div:last-child {
+  padding-right: 0;
+  border-right: 0;
+}
+
+.hero-meta dt {
+  margin: 0;
+  font-size: 0.64rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.hero-meta dd {
+  margin: 0;
+  font-family: var(--font-mincho);
+  font-size: 1.18rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
 }
 
 .hero-banner {
@@ -475,16 +529,24 @@ section {
 
 .sound-range::-webkit-slider-runnable-track,
 .master-range::-webkit-slider-runnable-track {
-  height: 2px;
-  border-radius: 2px;
-  background: var(--line-strong);
+  height: 3px;
+  border-radius: 3px;
+  background: linear-gradient(
+    to right,
+    var(--accent) var(--fill, 0%),
+    var(--line-strong) var(--fill, 0%)
+  );
 }
 
 .sound-range::-moz-range-track,
 .master-range::-moz-range-track {
-  height: 2px;
-  border-radius: 2px;
-  background: var(--line-strong);
+  height: 3px;
+  border-radius: 3px;
+  background: linear-gradient(
+    to right,
+    var(--accent) var(--fill, 0%),
+    var(--line-strong) var(--fill, 0%)
+  );
 }
 
 .sound-range::-webkit-slider-thumb,
@@ -493,7 +555,7 @@ section {
   appearance: none;
   width: 14px;
   height: 14px;
-  margin-top: -6px;
+  margin-top: -5.5px;
   border-radius: 50%;
   background: var(--bg);
   border: 2px solid var(--accent);
@@ -523,6 +585,23 @@ section {
 
 .sound.is-on .sound-range::-moz-range-thumb {
   background: var(--accent);
+}
+
+/* 止まっている音はフェーダを淡い灰で見せ、鳴っている音だけ accent で塗る */
+.sound:not(.is-on) .sound-range::-webkit-slider-runnable-track {
+  background: linear-gradient(to right, var(--faint) var(--fill, 0%), var(--line-strong) var(--fill, 0%));
+}
+
+.sound:not(.is-on) .sound-range::-moz-range-track {
+  background: linear-gradient(to right, var(--faint) var(--fill, 0%), var(--line-strong) var(--fill, 0%));
+}
+
+.sound:not(.is-on) .sound-range::-webkit-slider-thumb {
+  border-color: var(--faint);
+}
+
+.sound:not(.is-on) .sound-range::-moz-range-thumb {
+  border-color: var(--faint);
 }
 
 .mixer-hint {
