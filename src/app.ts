@@ -138,13 +138,42 @@ export function mountApp(root: HTMLElement): void {
     paintRange(masterInput);
   }
 
+  // マスター値の表示。シーン適用などのまとまった変化では数字をなめらかに送る。
+  // ドラッグ中(changeMaster)は即時、reduced-motion・rAF不在では即時にする。
+  let countRaf = 0;
+  function setMasterReadout(to: number, animate: boolean): void {
+    if (countRaf) {
+      cancelAnimationFrame(countRaf);
+      countRaf = 0;
+    }
+    const from = Number(masterValue.textContent) || 0;
+    if (
+      !animate ||
+      from === to ||
+      prefersReducedMotion() ||
+      typeof requestAnimationFrame !== 'function'
+    ) {
+      masterValue.textContent = String(to);
+      return;
+    }
+    const start = performance.now();
+    const dur = 420;
+    const tick = (now: number): void => {
+      const k = Math.min(1, (now - start) / dur);
+      const eased = 1 - Math.pow(1 - k, 3);
+      masterValue.textContent = String(Math.round(from + (to - from) * eased));
+      countRaf = k < 1 ? requestAnimationFrame(tick) : 0;
+    };
+    countRaf = requestAnimationFrame(tick);
+  }
+
   function applyMixAll(next: Mix): void {
     ensureStarted();
     setMix(next);
     mixer.applyMix(next);
     renderSounds();
     masterInput.value = String(Math.round(next.master * 100));
-    masterValue.textContent = String(Math.round(next.master * 100));
+    setMasterReadout(Math.round(next.master * 100), true);
     paintRange(masterInput);
     refreshWave();
   }
