@@ -13,6 +13,8 @@ const PATHS: Readonly<Record<string, string>> = {
   shuffle: '<path d="M4 6h3.5L17 18h3" /><path d="M17 6h3M4 18h3.5L11 13" /><path d="M17 4l3 2-3 2M17 16l3 2-3 2" />',
   timer: '<circle cx="12" cy="13" r="8" /><path d="M12 13V9M9 2h6" />',
   check: '<path d="M5 12.5 10 17 19 7" />',
+  close: '<path d="M6 6l12 12M18 6 6 18" />',
+  save: '<path d="M5 5h11l3 3v11H5z" /><path d="M8 5v5h7V5M8 19v-6h8v6" />',
   sun: '<circle cx="12" cy="12" r="3.6" /><path d="M12 3v2.4M12 18.6V21M3 12h2.4M18.6 12H21M5.6 5.6l1.7 1.7M16.7 16.7l1.7 1.7M18.4 5.6l-1.7 1.7M7.3 16.7l-1.7 1.7" />',
   moon: '<path d="M20 14.4A8 8 0 1 1 9.6 4 6.3 6.3 0 0 0 20 14.4z" />',
   auto: '<circle cx="12" cy="12" r="8.4" /><path d="M12 3.6a8.4 8.4 0 0 1 0 16.8z" fill="currentColor" stroke="none" />',
