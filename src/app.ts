@@ -99,6 +99,7 @@ export function mountApp(root: HTMLElement): void {
   const activeLabel = h('span', { class: 'mixer-count', attrs: { role: 'status', 'aria-live': 'polite' } });
   const sleepStatus = h('span', { class: 'sleep-status', attrs: { role: 'status', 'aria-live': 'polite' } });
   const shareStatus = h('span', { class: 'share-status', attrs: { role: 'status', 'aria-live': 'polite' } });
+  let silenceBtn: HTMLButtonElement | null = null;
 
   function persist(): void {
     const encoded = encodeMix(state.mix);
@@ -219,6 +220,7 @@ export function mountApp(root: HTMLElement): void {
   function syncMeta(): void {
     const n = activeCount(state.mix);
     activeLabel.textContent = n === 0 ? '音は止まっています' : `${n} 種類が重なっています`;
+    if (silenceBtn) silenceBtn.disabled = n === 0;
   }
 
   function syncCard(id: string): void {
@@ -227,7 +229,11 @@ export function mountApp(root: HTMLElement): void {
     if (!card || !layer) return;
     card.classList.toggle('is-on', layer.on);
     const toggle = card.querySelector<HTMLButtonElement>('.sound-toggle');
-    toggle?.setAttribute('aria-pressed', String(layer.on));
+    if (toggle) {
+      const def = getSound(id);
+      toggle.setAttribute('aria-pressed', String(layer.on));
+      toggle.setAttribute('aria-label', `${def?.name ?? ''}を${layer.on ? '止める' : '鳴らす'}`);
+    }
     const input = volumeInputs.get(id);
     if (input) {
       input.value = String(Math.round(layer.volume * 100));
@@ -248,7 +254,11 @@ export function mountApp(root: HTMLElement): void {
       'button',
       {
         class: 'sound-toggle',
-        attrs: { type: 'button', 'aria-pressed': layer.on, 'aria-label': `${def.name}を鳴らす` },
+        attrs: {
+          type: 'button',
+          'aria-pressed': layer.on,
+          'aria-label': `${def.name}を${layer.on ? '止める' : '鳴らす'}`,
+        },
         on: { click: () => toggleSound(id) },
       },
       [
@@ -434,12 +444,13 @@ export function mountApp(root: HTMLElement): void {
       masterInput,
     ]);
 
-    const silenceBtn = h('button', {
+    silenceBtn = h('button', {
       class: 'ghost',
       attrs: { type: 'button' },
       html: `${icon('power')}<span>すべて止める</span>`,
       on: { click: () => applyMixAll(silenceAll(state.mix)) },
     });
+    silenceBtn.disabled = activeCount(state.mix) === 0;
 
     const sleepSelect = h('select', { class: 'field', attrs: { 'aria-label': 'スリープタイマー' } }) as HTMLSelectElement;
     for (const min of SLEEP_OPTIONS) {
