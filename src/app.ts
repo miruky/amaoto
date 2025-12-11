@@ -377,7 +377,7 @@ export function mountApp(root: HTMLElement): void {
       }),
       h('p', { class: 'lead-sub', text: '音を足し、スライダーで濃さを決める。リンクにすれば同じ音をそのまま渡せる。' }),
       h('dl', { class: 'hero-meta' }, [
-        h('div', {}, [h('dt', { text: '音源' }), h('dd', { text: '8種' })]),
+        h('div', {}, [h('dt', { text: '音源' }), h('dd', { text: `${SOUNDS.length}種` })]),
         h('div', {}, [h('dt', { text: '音声ファイル' }), h('dd', { text: '0' })]),
         h('div', {}, [h('dt', { text: '通信' }), h('dd', { text: '不要' })]),
       ]),
