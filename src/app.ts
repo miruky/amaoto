@@ -14,6 +14,13 @@ import { getSound, SOUNDS } from './lib/sounds';
 import { decodeMix, encodeMix } from './lib/share';
 import { loadString, saveString } from './lib/storage';
 import {
+  loadPresets,
+  persistPresets,
+  type Preset,
+  removePreset,
+  upsertPreset,
+} from './lib/presets';
+import {
   applyTheme,
   loadTheme,
   nextTheme,
@@ -78,6 +85,9 @@ export function mountApp(root: HTMLElement): void {
   const state = { mix: initialMix() };
   let started = false;
   let theme: Theme = loadTheme();
+  let presets: Preset[] = loadPresets();
+  // スペースで止めた直前の音。もう一度押すと戻す。
+  let lastAudible: Mix | null = null;
 
   const cards = new Map<string, HTMLElement>();
   const volumeInputs = new Map<string, HTMLInputElement>();
@@ -191,6 +201,17 @@ export function mountApp(root: HTMLElement): void {
   function refreshWave(): void {
     if (started && !prefersReducedMotion() && activeCount(state.mix) > 0) waveform.start();
     else waveform.stop();
+  }
+
+  // スペースキー用。鳴っていれば直前として覚えて止め、止まっていれば直前を戻す。
+  function toggleAll(): void {
+    ensureStarted();
+    if (activeCount(state.mix) > 0) {
+      lastAudible = state.mix;
+      applyMixAll(silenceAll(state.mix));
+    } else if (lastAudible) {
+      applyMixAll(lastAudible);
+    }
   }
 
   // ---- 描画 ----
@@ -363,7 +384,7 @@ export function mountApp(root: HTMLElement): void {
       activeLabel,
     ]),
     soundList,
-    h('p', { class: 'mixer-hint', text: '数字キー(1〜8)でも音を出し入れできる。' }),
+    h('p', { class: 'mixer-hint', text: '数字キー(1〜8)で音を、スペースで一時停止と再開ができる。' }),
   ]);
 
   const sceneRow = (): HTMLElement => {
@@ -477,10 +498,90 @@ export function mountApp(root: HTMLElement): void {
     }, 2600);
   }
 
+  // ---- 保存した音(プリセット) ----
+
+  const presetName = h('input', {
+    class: 'field saved-input',
+    attrs: { type: 'text', maxlength: 40, placeholder: '例: 夜更けの雨', 'aria-label': '保存する音の名前' },
+  }) as HTMLInputElement;
+  const savedList = h('div', { class: 'chips saved-list', attrs: { role: 'group', 'aria-label': '保存した音' } });
+  const savedEmpty = h('p', {
+    class: 'section-note saved-empty',
+    text: 'いまの重なりに名前を付けて保存すると、シーンのように呼び戻せる。保存先はこの端末のブラウザ。',
+  });
+
+  function savePreset(): void {
+    const name = presetName.value.trim();
+    if (!name) {
+      presetName.focus();
+      return;
+    }
+    presets = upsertPreset(presets, name, encodeMix(state.mix));
+    persistPresets(presets);
+    presetName.value = '';
+    renderPresets();
+  }
+
+  function recallPreset(preset: Preset): void {
+    const mix = decodeMix(preset.mix);
+    if (mix) applyMixAll(mix);
+  }
+
+  function deletePreset(name: string): void {
+    presets = removePreset(presets, name);
+    persistPresets(presets);
+    renderPresets();
+  }
+
+  function renderPresets(): void {
+    savedEmpty.hidden = presets.length > 0;
+    savedList.hidden = presets.length === 0;
+    savedList.replaceChildren(
+      ...presets.map((preset) =>
+        h('span', { class: 'preset' }, [
+          h('button', {
+            class: 'chip preset-recall',
+            text: preset.name,
+            attrs: { type: 'button', 'aria-label': `「${preset.name}」を呼び出す` },
+            on: { click: () => recallPreset(preset) },
+          }),
+          h('button', {
+            class: 'preset-del',
+            attrs: { type: 'button', 'aria-label': `「${preset.name}」を削除` },
+            html: icon('close', 14),
+            on: { click: () => deletePreset(preset.name) },
+          }),
+        ]),
+      ),
+    );
+  }
+
+  const saveBtn = h('button', {
+    class: 'ghost',
+    attrs: { type: 'button' },
+    html: `${icon('save')}<span>保存</span>`,
+    on: { click: savePreset },
+  });
+  presetName.addEventListener('keydown', (e) => {
+    if ((e as KeyboardEvent).key === 'Enter') savePreset();
+  });
+
+  const savedSection = h('section', { class: 'saved reveal' }, [
+    h('div', { class: 'section-head' }, [
+      h('div', {}, [
+        h('span', { class: 'kicker', html: '<span class="kicker-no">03</span>Saved' }),
+        h('h2', { class: 'section-title', text: '保存した音' }),
+      ]),
+    ]),
+    h('div', { class: 'saved-form' }, [presetName, saveBtn]),
+    savedEmpty,
+    savedList,
+  ]);
+
   const consoleSection = h('section', { class: 'console reveal' }, [
     h('div', { class: 'section-head' }, [
       h('div', {}, [
-        h('span', { class: 'kicker', html: '<span class="kicker-no">03</span>Console' }),
+        h('span', { class: 'kicker', html: '<span class="kicker-no">04</span>Console' }),
         h('h2', { class: 'section-title', text: '全体の調整' }),
       ]),
     ]),
@@ -496,10 +597,11 @@ export function mountApp(root: HTMLElement): void {
 
   root.replaceChildren(
     header,
-    h('main', { class: 'layout' }, [hero, mixerSection, scenesSection, consoleSection, footer]),
+    h('main', { class: 'layout' }, [hero, mixerSection, scenesSection, savedSection, consoleSection, footer]),
   );
 
   renderSounds();
+  renderPresets();
   syncTheme();
   refreshWave();
   observeReveals(root);
@@ -514,7 +616,15 @@ export function mountApp(root: HTMLElement): void {
   window.addEventListener('keydown', (event) => {
     const target = event.target as HTMLElement | null;
     const tag = target?.tagName;
-    if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+    const typing = tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA';
+    // スペースは全体の一時停止/再開。ボタンやリンクに乗っているときは既定動作に譲る。
+    if (event.key === ' ' || event.code === 'Space') {
+      if (typing || tag === 'BUTTON' || tag === 'A') return;
+      event.preventDefault();
+      toggleAll();
+      return;
+    }
+    if (typing) return;
     const index = Number(event.key) - 1;
     if (Number.isInteger(index) && index >= 0 && index < SOUNDS.length) {
       event.preventDefault();
