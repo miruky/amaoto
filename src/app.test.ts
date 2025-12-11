@@ -103,3 +103,59 @@ describe('永続化', () => {
     expect(storage.getItem('amaoto:mix')).not.toBeNull();
   });
 });
+
+describe('保存した音(プリセット)', () => {
+  function saveAs(root: HTMLElement, name: string): void {
+    const input = root.querySelector<HTMLInputElement>('.saved-input')!;
+    input.value = name;
+    const save = [...root.querySelectorAll<HTMLButtonElement>('.saved .ghost')].find((b) =>
+      b.textContent?.includes('保存'),
+    )!;
+    save.click();
+  }
+
+  it('はじめは空状態を見せる', () => {
+    const root = setup();
+    expect(root.querySelector<HTMLElement>('.saved-empty')!.hidden).toBe(false);
+    expect(root.querySelectorAll('.preset-recall')).toHaveLength(0);
+  });
+
+  it('名前を付けて保存すると呼び出せる', () => {
+    const root = setup();
+    card(root, 'fire').querySelector<HTMLButtonElement>('.sound-toggle')!.click();
+    saveAs(root, '焚き火だけ');
+
+    const chip = root.querySelector<HTMLButtonElement>('.preset-recall');
+    expect(chip?.textContent).toBe('焚き火だけ');
+    expect(storage.getItem('amaoto:presets')).toContain('焚き火だけ');
+
+    const stop = [...root.querySelectorAll<HTMLButtonElement>('.ghost')].find((b) =>
+      b.textContent?.includes('すべて止める'),
+    )!;
+    stop.click();
+    expect(root.querySelectorAll('.sound.is-on')).toHaveLength(0);
+
+    chip!.click();
+    expect(card(root, 'fire').classList.contains('is-on')).toBe(true);
+  });
+
+  it('削除すると一覧から消える', () => {
+    const root = setup();
+    saveAs(root, '消す音');
+    expect(root.querySelectorAll('.preset-recall')).toHaveLength(1);
+    root.querySelector<HTMLButtonElement>('.preset-del')!.click();
+    expect(root.querySelectorAll('.preset-recall')).toHaveLength(0);
+    expect(root.querySelector<HTMLElement>('.saved-empty')!.hidden).toBe(false);
+  });
+});
+
+describe('スペースキーでの一時停止と再開', () => {
+  it('鳴っていれば止め、もう一度で戻す', () => {
+    const root = setup();
+    expect(card(root, 'rain').classList.contains('is-on')).toBe(true);
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: ' ' }));
+    expect(root.querySelectorAll('.sound.is-on')).toHaveLength(0);
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: ' ' }));
+    expect(card(root, 'rain').classList.contains('is-on')).toBe(true);
+  });
+});
