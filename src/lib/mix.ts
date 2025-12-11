@@ -109,6 +109,9 @@ export const SCENES: readonly Scene[] = [
   scene('umibe', '海辺', { waves: 0.8, wind: 0.3 }),
   scene('takibi', '焚き火の夜', { fire: 0.7, wind: 0.2 }),
   scene('keiryu', '渓流', { stream: 0.6, wind: 0.25 }),
+  scene('takitsubo', '滝壺', { waterfall: 0.6, stream: 0.3 }),
+  scene('doshaburi', '土砂降り', { downpour: 0.75, wind: 0.3 }),
+  scene('amayadori', '雨宿り', { rain: 0.45, fire: 0.4 }),
   scene('arashi', '嵐', { rain: 0.7, wind: 0.6, waves: 0.4 }),
   scene('shuchu', '集中', { brown: 0.7 }),
 ];
