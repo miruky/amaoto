@@ -159,3 +159,24 @@ describe('スペースキーでの一時停止と再開', () => {
     expect(card(root, 'rain').classList.contains('is-on')).toBe(true);
   });
 });
+
+describe('空状態の体裁', () => {
+  it('鳴っていないと「すべて止める」は押せない', () => {
+    const root = setup();
+    const stop = [...root.querySelectorAll<HTMLButtonElement>('.ghost')].find((b) =>
+      b.textContent?.includes('すべて止める'),
+    )!;
+    expect(stop.disabled).toBe(false);
+    stop.click();
+    expect(root.querySelectorAll('.sound.is-on')).toHaveLength(0);
+    expect(stop.disabled).toBe(true);
+  });
+
+  it('トグルの読み上げ名が状態で変わる', () => {
+    const root = setup();
+    const toggle = card(root, 'fire').querySelector<HTMLButtonElement>('.sound-toggle')!;
+    expect(toggle.getAttribute('aria-label')).toBe('焚き火を鳴らす');
+    toggle.click();
+    expect(toggle.getAttribute('aria-label')).toBe('焚き火を止める');
+  });
+});

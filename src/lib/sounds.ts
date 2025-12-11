@@ -45,6 +45,15 @@ export const SOUNDS: readonly SoundDef[] = [
     lfo: { rate: 0.08, depth: 0.12, target: 'gain' },
   },
   {
+    id: 'downpour',
+    name: '豪雨',
+    icon: 'rain',
+    color: 'pink',
+    filter: { kind: 'highpass', freq: 480, q: 0.7 },
+    gain: 0.62,
+    lfo: { rate: 0.13, depth: 0.18, target: 'gain' },
+  },
+  {
     id: 'waves',
     name: '波',
     icon: 'waves',
@@ -79,6 +88,15 @@ export const SOUNDS: readonly SoundDef[] = [
     filter: { kind: 'highpass', freq: 1200, q: 0.6 },
     gain: 0.4,
     lfo: { rate: 0.7, depth: 0.1, target: 'gain' },
+  },
+  {
+    id: 'waterfall',
+    name: '滝',
+    icon: 'waves',
+    color: 'white',
+    filter: { kind: 'lowpass', freq: 1100, q: 0.5 },
+    gain: 0.55,
+    lfo: { rate: 0.3, depth: 0.04, target: 'gain' },
   },
   {
     id: 'white',
