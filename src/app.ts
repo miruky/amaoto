@@ -135,6 +135,36 @@ export function mountApp(root: HTMLElement): void {
     setMix(setMaster(state.mix, value / 100));
     mixer.setMaster(value / 100);
     masterValue.textContent = String(Math.round(value));
+    paintRange(masterInput);
+  }
+
+  // マスター値の表示。シーン適用などのまとまった変化では数字をなめらかに送る。
+  // ドラッグ中(changeMaster)は即時、reduced-motion・rAF不在では即時にする。
+  let countRaf = 0;
+  function setMasterReadout(to: number, animate: boolean): void {
+    if (countRaf) {
+      cancelAnimationFrame(countRaf);
+      countRaf = 0;
+    }
+    const from = Number(masterValue.textContent) || 0;
+    if (
+      !animate ||
+      from === to ||
+      prefersReducedMotion() ||
+      typeof requestAnimationFrame !== 'function'
+    ) {
+      masterValue.textContent = String(to);
+      return;
+    }
+    const start = performance.now();
+    const dur = 420;
+    const tick = (now: number): void => {
+      const k = Math.min(1, (now - start) / dur);
+      const eased = 1 - Math.pow(1 - k, 3);
+      masterValue.textContent = String(Math.round(from + (to - from) * eased));
+      countRaf = k < 1 ? requestAnimationFrame(tick) : 0;
+    };
+    countRaf = requestAnimationFrame(tick);
   }
 
   function applyMixAll(next: Mix): void {
@@ -143,7 +173,8 @@ export function mountApp(root: HTMLElement): void {
     mixer.applyMix(next);
     renderSounds();
     masterInput.value = String(Math.round(next.master * 100));
-    masterValue.textContent = String(Math.round(next.master * 100));
+    setMasterReadout(Math.round(next.master * 100), true);
+    paintRange(masterInput);
     refreshWave();
   }
 
@@ -177,7 +208,10 @@ export function mountApp(root: HTMLElement): void {
     const toggle = card.querySelector<HTMLButtonElement>('.sound-toggle');
     toggle?.setAttribute('aria-pressed', String(layer.on));
     const input = volumeInputs.get(id);
-    if (input) input.value = String(Math.round(layer.volume * 100));
+    if (input) {
+      input.value = String(Math.round(layer.volume * 100));
+      paintRange(input);
+    }
   }
 
   function buildCard(id: string): HTMLElement {
@@ -219,6 +253,7 @@ export function mountApp(root: HTMLElement): void {
       on: { input: (e) => changeVolume(id, Number((e.target as HTMLInputElement).value)) },
     }) as HTMLInputElement;
     volumeInputs.set(id, volume);
+    paintRange(volume);
 
     const card = h('li', { class: 'sound' + (layer.on ? ' is-on' : ''), attrs: { 'data-id': id } }, [
       toggle,
@@ -309,7 +344,12 @@ export function mountApp(root: HTMLElement): void {
         class: 'lead',
         text: '雨、波、風、焚き火。鳴らしたい音を選んで重ね、いまの作業や休息にちょうどいい場をつくる。音声ファイルは持たず、すべてその場で合成するので、待ち時間も通信もない。',
       }),
-      h('p', { class: 'lead-sub', text: 'カードで音を足し、スライダーで濃さを決める。リンクにすれば同じ音をそのまま渡せる。' }),
+      h('p', { class: 'lead-sub', text: '音を足し、スライダーで濃さを決める。リンクにすれば同じ音をそのまま渡せる。' }),
+      h('dl', { class: 'hero-meta' }, [
+        h('div', {}, [h('dt', { text: '音源' }), h('dd', { text: '8種' })]),
+        h('div', {}, [h('dt', { text: '音声ファイル' }), h('dd', { text: '0' })]),
+        h('div', {}, [h('dt', { text: '通信' }), h('dd', { text: '不要' })]),
+      ]),
     ]),
     heroBanner(),
   ]);
@@ -317,8 +357,8 @@ export function mountApp(root: HTMLElement): void {
   const mixerSection = h('section', { class: 'mixer reveal' }, [
     h('div', { class: 'section-head' }, [
       h('div', {}, [
-        h('span', { class: 'kicker', text: '音を重ねる' }),
-        h('h2', { class: 'section-title', text: '音の重なり' }),
+        h('span', { class: 'kicker', html: '<span class="kicker-no">01</span>Layers' }),
+        h('h2', { class: 'section-title', text: '音を重ねる' }),
       ]),
       activeLabel,
     ]),
@@ -351,7 +391,7 @@ export function mountApp(root: HTMLElement): void {
   const scenesSection = h('section', { class: 'scenes reveal' }, [
     h('div', { class: 'section-head' }, [
       h('div', {}, [
-        h('span', { class: 'kicker', text: '下ごしらえ' }),
+        h('span', { class: 'kicker', html: '<span class="kicker-no">02</span>Scenes' }),
         h('h2', { class: 'section-title', text: 'シーン' }),
       ]),
     ]),
@@ -362,6 +402,7 @@ export function mountApp(root: HTMLElement): void {
   const buildConsole = (): HTMLElement => {
     masterInput.value = String(Math.round(state.mix.master * 100));
     masterValue.textContent = String(Math.round(state.mix.master * 100));
+    paintRange(masterInput);
     masterInput.addEventListener('input', () => changeMaster(Number(masterInput.value)));
 
     const master = h('div', { class: 'master' }, [
@@ -439,8 +480,8 @@ export function mountApp(root: HTMLElement): void {
   const consoleSection = h('section', { class: 'console reveal' }, [
     h('div', { class: 'section-head' }, [
       h('div', {}, [
-        h('span', { class: 'kicker', text: '全体' }),
-        h('h2', { class: 'section-title', text: 'コンソール' }),
+        h('span', { class: 'kicker', html: '<span class="kicker-no">03</span>Console' }),
+        h('h2', { class: 'section-title', text: '全体の調整' }),
       ]),
     ]),
     buildConsole(),
@@ -485,6 +526,14 @@ export function mountApp(root: HTMLElement): void {
     const shared = decodeMix(location.hash);
     if (shared) applyMixAll(shared);
   });
+}
+
+// スライダーの「ここまで」を見せるため、値に応じた割合を --fill に書き込む。
+// トラックはこの変数で塗り分ける(下位ブラウザでも素のトラックに退化するだけ)。
+function paintRange(input: HTMLInputElement): void {
+  const max = Number(input.max) || 100;
+  const pct = max > 0 ? (Number(input.value) / max) * 100 : 0;
+  input.style.setProperty('--fill', `${pct}%`);
 }
 
 function svgPath(cls: string): SVGPathElement {
